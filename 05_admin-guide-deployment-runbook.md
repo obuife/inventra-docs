@@ -31,7 +31,7 @@ Open your dashboard every morning and check these four areas:
 | View Dashboard — full revenue data | ✓ | ✓ | — |
 | View Dashboard — limited (no revenue) | ✓ | ✓ | ✓ |
 | Add / Edit Products | ✓ | ✓ | — |
-| Delete (Archive) Products | ✓ | — | — |
+| Delete (Archive) Products | ✓ | ✓ | — |
 | View Product List | ✓ | ✓ | ✓ |
 | Record Stock In | ✓ | ✓ | — |
 | Record Manual Stock Out | ✓ | ✓ | — |
