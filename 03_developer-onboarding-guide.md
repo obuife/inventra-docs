@@ -311,6 +311,8 @@ After 3 failed retries: queue item flagged as **Sync Failed**. User sees: *"X sa
 
 ### Error Codes
 
+All API errors must return the standard error envelope format with an appropriate HTTP status code. Use the common error codes defined in the API contract (refer to [`07_complete-api-reference.md` — Section 1.3](./07_complete-api-reference.md)):
+
 | Code | HTTP | Meaning |
 |---|---|---|
 | `UNAUTHORIZED` | 401 | Invalid or expired token |
