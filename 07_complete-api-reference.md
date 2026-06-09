@@ -144,7 +144,7 @@ Verifies the OTP and creates the user account.
   "data": {
     "access_token": "eyJhbGci...",
     "refresh_token": "eyJhbGci...",
-    "user": { "id": "uuid", "role": "admin", "business_id": "uuid" },
+    "user": { "id": "uuid", "name": "Admin User", "role": "admin", "business_id": "uuid" },
     "business": { "id": "uuid", "name": "Mama Ngozi Stores" }
   }
 }
@@ -185,7 +185,7 @@ Generates a staff invitation code. Admin role required.
 | `POST` | `/products` | Create a new product | Admin / Manager |
 | `GET` | `/products/:id` | Get single product with current stock | JWT |
 | `PUT` | `/products/:id` | Update product fields | Admin / Manager |
-| `DELETE` | `/products/:id` | Soft-delete (archive) a product | Admin only |
+| `DELETE` | `/products/:id` | Soft-delete (archive) a product | Admin / Manager |
 | `POST` | `/products/:id/stockin` | Record new stock received | Admin / Manager |
 | `POST` | `/products/:id/stockout` | Record manual stock removal | Admin / Manager |
 | `GET` | `/products/:id/history` | Full stock movement history for a product | JWT |
