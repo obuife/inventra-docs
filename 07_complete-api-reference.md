@@ -734,7 +734,7 @@ Changes a user's role. **Immediately invalidates their current session.**
 | Type | Format | Example |
 |---|---|---|
 | UUID | UUID v4 string | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` |
-| Monetary amount | `DECIMAL(12,2)` as string in JSON | `"1250.00"` |
+| Monetary amount | `Number` stored in MongoDB; serialised as 2-decimal string in JSON | `"1250.00"` |
 | Currency | Nigerian Naira (NGN). All amounts in NGN. | `"5500.00"` = ₦5,500.00 |
 | Timestamp | ISO 8601 UTC | `"2026-05-01T09:00:00Z"` |
 | Date only | ISO 8601 YYYY-MM-DD | `"2026-12-31"` |
