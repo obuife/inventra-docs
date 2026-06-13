@@ -203,7 +203,7 @@ For full request and response details, see the [API reference](./07_complete-api
 
 > **Planned (not yet built):** `/suppliers` and `/purchase-orders` endpoint groups, the supplier-dependent reports (`/reports/order-status`, `/reports/recent-orders`, `/reports/supplier-performance`), and the `/sync` endpoint group are designed but not yet implemented. Don't integrate against them.
 
-> **Reconciliation note:** Reconciliation has shipped, but its exact route paths and request/response shapes are still being confirmed with the Backend Lead. Treat the routes in the [API reference](./07_complete-api-reference.md#7-inventory-reconciliation) as the proposed contract until confirmed.
+> **Reconciliation:** The reconciliation endpoints are documented in the [API reference](./07_complete-api-reference.md#7-inventory-reconciliation).
 
 ---
 
