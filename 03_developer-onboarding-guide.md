@@ -1,56 +1,64 @@
-# StockSense — Developer Onboarding Guide
+# Inventra — Developer onboarding guide
 
-**Audience:** Backend, Frontend, Mobile Developers
-**Applies To:** StockSense v1.0 MVP — All Engineering Tracks
-**Prerequisites:** Git, Node.js 18+, MongoDB (Atlas or local), Android Studio (mobile track), Android Studio (mobile track)
+**Audience:** Backend, frontend, and mobile developers
+**Applies to:** Inventra v1.0 MVP — all engineering tracks
+**Prerequisites:** Git, Node.js 18+, MongoDB (Atlas or local), Android Studio (mobile track only)
 **Owner:** Engineering Lead
 
----
+This guide gets you from a clean machine to a running Inventra backend. It also explains the architecture, the API surface, and the standards you follow on this project.
 
-## 1. Product Overview
-
-StockSense is a mobile-first, offline-capable inventory and sales management system built for SMEs across Nigeria and Sub-Saharan Africa. It is designed to work reliably on 2G/3G connections and to function fully without any internet access.
-
-As a developer on this project, your work must honour three non-negotiable product constraints:
-
-- **Offline-first:** All core write operations must work without a network connection and sync when connectivity is restored.
-- **Performance on low-end devices:** Target Android 8.0+, minimum 2GB RAM. Bundle size must stay under 30MB for the APK.
-- **Role-Based Access Control (RBAC):** Every API endpoint and UI screen must enforce role permissions (Admin, Manager, Attendant).
+> **Status note**
+> This guide describes the **current build**. Where a feature is designed but not yet implemented (Redis, OTP, offline sync engine, supplier management, purchase orders), it's marked **Planned**. **Inventory reconciliation has shipped and is part of the current build.** Don't assume planned items exist when you write code against the backend.
 
 ---
 
-## 2. System Architecture
+## 1. Product overview
 
-### 2.1 Three-Tier Architecture
+Inventra is a mobile-first inventory and sales management system for SMEs across Nigeria and Sub-Saharan Africa. It's designed to work on 2G/3G connections, with full offline operation as a product goal.
+
+Your work honours three product constraints:
+
+- **Offline-first (client goal):** Core write operations should work without a network connection and sync when connectivity returns. The client-side queue is part of the v1.0 design; the server sync endpoints are **planned**.
+- **Performance on low-end devices:** Target Android 8.0+, minimum 2 GB RAM. Keep the APK under 30 MB.
+- **Role-based access control (RBAC):** Every endpoint and screen enforces role permissions (Admin, Manager, Attendant).
+
+---
+
+## 2. System architecture
+
+### 2.1 Three-tier architecture
 
 | Layer | Technology | Responsibility |
 |---|---|---|
-| **Client** | React PWA / Android (Kotlin or Flutter) | UI, offline storage (IndexedDB/SQLite), service worker, sync queue |
-| **API** | Node.js + Express.js | REST API, JWT auth, RBAC middleware, rate limiting, business logic |
-| **Data** | MongoDB (Atlas/local) + Redis + S3 | Persistent storage, caching, job queues, file exports |
+| Client | React PWA / Android (Kotlin or Flutter) | UI, local storage, sync queue |
+| API | Node.js + Express.js | REST API, JWT auth, RBAC, business logic |
+| Data | MongoDB (Atlas/local) | Persistent storage via Mongoose |
+
+> **Note:** Redis (caching, queues) and S3 (file exports) appear in the target architecture but **aren't implemented** in the v1.0 backend.
 
 ### 2.2 Authentication
 
-- **Primary:** Phone number + OTP (via Termii or InfoBip — TBD, see Open Question OQ-001)
-- **Secondary:** Email + password (bcrypt hash, min 12 rounds)
-- **Attendant:** 4-digit PIN (bcrypt hash) for quick login on shared devices
-- **Token type:** JWT with RS256 signing. Access token: 24h. Refresh token: 30 days.
-- **RBAC roles:** `admin`, `manager`, `attendant` — encoded in the JWT payload
+The current backend uses email/password login with JWT:
+
+- **Tokens:** JWT issued by the `jsonwebtoken` library, signed with a shared secret (`JWT_SECRET`).
+- **Endpoints:** `POST /auth/register` and `POST /auth/login`. Login returns `{ token, user }`.
+- **RBAC roles:** `admin`, `manager`, `attendant`.
+
+> **Planned:** Phone OTP registration, 4-digit PIN login, RS256 signing, and refresh-token rotation. None are in the current build.
 
 ---
 
-## 3. Repository Structure
+## 3. Repository structure
 
 ```
-/stocksense
+/inventra
   /backend                → Node.js + Express API
     /src
       /routes             → Express route definitions
       /controllers        → Route handler logic
-      /services           → Business logic (alerts engine, sync, reports)
-      /middleware         → RBAC, JWT verification, rate limiting
-      /models             → Mongoose schemas + DB access layer
-      /jobs               → Bull queue workers (report gen, alert eval)
+      /services           → Business logic (alerts, reports, reconciliation)
+      /middleware         → RBAC, JWT verification, validation
+      /models             → Mongoose schemas
       /utils              → Helpers (error handlers, validators)
     /tests
     .env.example
@@ -58,88 +66,91 @@ As a developer on this project, your work must honour three non-negotiable produ
     /src
       /components         → Reusable UI components
       /pages              → Next.js page routes
-      /store              → Redux Toolkit / Zustand state
+      /store              → State management
       /services           → API client, offline sync engine
       /db                 → Dexie.js (IndexedDB) schema and access
     /public               → Static assets, manifest.json, service worker
-  /mobile                 → Android app (Kotlin / Flutter — TBD)
+  /mobile                 → Android app (Kotlin or Flutter)
   /docs                   → Technical documentation
-  /scripts                → CI/CD, migrations, seed data
+  /scripts                → Seed data and tooling
 ```
+
+> **Note:** The backend currently lives in its own repository: [`Triaaz/StockSense-Backend-Devlopment`](https://github.com/Triaaz/StockSense-Backend-Devlopment). The repo name predates the Inventra rename.
 
 ---
 
-## 4. Environment Setup
+## 4. Environment setup
 
 ### 4.1 Prerequisites
 
 - Node.js 18 LTS or higher
-- MongoDB 6.0 or higher (local) OR a free MongoDB Atlas account
-- Redis 7 or higher
+- MongoDB 6.0+ (local) or a free MongoDB Atlas account
 - Git 2.40+
 - Android Studio (Flamingo or newer) — mobile track only
-- Docker (optional but recommended for local database setup)
 
-### 4.2 Backend Setup
+### 4.2 Set up the backend
 
-**1. Clone the repository:**
-```bash
-git clone https://github.com/your-org/stocksense.git
-cd stocksense/backend
-```
+1. **Clone the repository:**
 
-**2. Install dependencies:**
-```bash
-npm install
-```
+   ```bash
+   git clone https://github.com/Triaaz/StockSense-Backend-Devlopment.git
+   cd StockSense-Backend-Devlopment
+   ```
 
-**3. Copy and configure environment variables:**
-```bash
-cp .env.example .env
-```
+2. **Install dependencies:**
 
-Edit `.env` with the following required values:
-```
-MONGODB_URI=mongodb://localhost:27017/stocksense
-# OR for MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/stocksense
-REDIS_URL=redis://localhost:6379
-JWT_PRIVATE_KEY=<RS256 private key>
-JWT_PUBLIC_KEY=<RS256 public key>
-OTP_PROVIDER_KEY=<Termii or InfoBip API key>
-OTP_PROVIDER=termii
-NODE_ENV=development
-```
+   ```bash
+   npm install
+   ```
 
-**4. Seed the database with initial data:**
-```bash
-npm run seed
-```
+3. **Configure environment variables.** Copy the example file, then edit it:
 
-**5. Start the development server:**
-```bash
-npm run dev
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-> API available at `http://localhost:3001`. Swagger docs at `http://localhost:3001/api-docs`.
+   Set the following values:
 
-> ⚠️ **Never commit your `.env` file.** It is listed in `.gitignore` but always double-check before pushing.
+   ```
+   PORT=5000
+   MONGO_URI=mongodb://localhost:27017/inventra
+   # For MongoDB Atlas, use LIVE_URL instead:
+   # LIVE_URL=mongodb+srv://<username>:<password>@cluster0.mongodb.net/inventra
+   JWT_SECRET=<your secret>
+   ```
 
-### 4.3 Frontend Setup
+4. **Seed the database (optional):**
+
+   ```bash
+   npm run seed
+   ```
+
+5. **Start the development server:**
+
+   ```bash
+   npm run dev
+   ```
+
+   The API is available at `http://localhost:5000/api`.
+
+> **Important:** Never commit your `.env` file. Confirm it's in `.gitignore` before you push.
+
+### 4.3 Set up the frontend
 
 ```bash
 cd ../frontend
 npm install
 cp .env.local.example .env.local
-# Set: NEXT_PUBLIC_API_URL=http://localhost:3001
+# Set: NEXT_PUBLIC_API_URL=http://localhost:5000/api
 npm run dev
 ```
 
-> PWA available at `http://localhost:3000`
+The PWA is available at `http://localhost:3000`.
 
-### 4.4 Mobile Setup
+### 4.4 Set up the mobile app
 
-Refer to `/mobile/README.md`. Key points:
+See `/mobile/README.md`. Key points:
+
 - Minimum Android SDK target: API 26 (Android 8.0 Oreo)
 - Local database: SQLite via Room
 - Background sync: WorkManager
@@ -147,201 +158,156 @@ Refer to `/mobile/README.md`. Key points:
 
 ---
 
-## 5. API Reference
+## 5. API reference
 
 ### 5.1 Base URL
 
 | Environment | URL |
 |---|---|
-| Production | `https://api.stocksense.africa/v1/` |
-| Development | `http://localhost:3001/v1/` |
+| Production | `https://stocksense-backend-devlopment.onrender.com/api` |
+| Development | `http://localhost:5000/api` |
 
-### 5.2 Authentication Header
+### 5.2 Authentication header
 
 ```
-Authorization: Bearer <access_token>
+Authorization: Bearer <token>
 ```
 
-> RBAC middleware checks the `role` field in the JWT payload on every protected request. Roles in ascending permission level: `attendant` < `manager` < `admin`.
+RBAC middleware checks the `role` field in the JWT payload on every protected request. Roles in ascending permission level: `attendant` < `manager` < `admin`.
 
-> ⚠️ Any endpoint that modifies data (POST, PUT, DELETE) requires at minimum the `manager` role, except sales recording which is available to all authenticated roles.
-
-### 5.3 Standard Response Format
+### 5.3 Error format
 
 ```json
-// Success
 {
-  "success": true,
-  "data": { },
-  "message": "Operation completed successfully.",
-  "meta": { "page": 1, "total": 50, "timestamp": "2026-05-01T09:00:00Z" }
-}
-
-// Error
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Product name is required.",
-    "field": "name"
-  },
-  "timestamp": "2026-05-01T09:00:00Z"
+  "message": "Error description",
+  "error": "Detailed error"
 }
 ```
 
-### 5.4 Endpoint Groups
+### 5.4 Endpoint groups
 
-| Group | Base Path | Key Endpoints |
+For full request and response details, see the [API reference](./07_complete-api-reference.md).
+
+| Group | Base path | Key endpoints |
 |---|---|---|
-| Authentication | `/auth` | POST /register, /verify-otp, /login, /login/pin, /logout, /refresh, /invite |
-| Products | `/products` | GET /, POST /, GET /:id, PUT /:id, DELETE /:id, POST /:id/stockin, POST /:id/stockout |
-| Sales | `/sales` | GET /, POST /, GET /:id, POST /:id/void, GET /summary/today, GET /by-attendant |
-| Suppliers | `/suppliers` | GET /, POST /, PUT /:id, DELETE /:id |
-| Purchase Orders | `/purchase-orders` | GET /, POST /, PUT /:id |
-| Alerts | `/alerts` | GET /, PUT /:id/dismiss, PUT /:id/resolve |
-| Reconciliation | `/reconciliation` | POST /, GET /:id, PUT /:id, POST /:id/finalize, GET /history |
-| Reports | `/reports` | GET /sales, GET /inventory, GET /audit-log, GET /export |
-| Sync | `/sync` | POST / (upload queue), GET /pull (delta fetch) |
-| Users | `/users` | GET /, PUT /:id/role, DELETE /:id |
+| Authentication | `/auth` | `POST /register`, `POST /login` |
+| Users | `/users` | `GET /`, `GET /:id`, `PUT /:id`, `DELETE /:id` |
+| Categories | `/categories` | `POST /`, `GET /`, `GET /:id`, `PUT /:id`, `DELETE /:id` |
+| Products | `/products` | `POST /`, `GET /`, `GET /:id`, `PUT /:id`, `DELETE /:id` |
+| Inventory | `/inventory` | `POST /stock-in`, `POST /stock-out`, `PUT /update`, `GET /history` |
+| Sales | `/sales` | `POST /`, `GET /history`, `GET /attendant/:attendantId`, `PUT /:id/void`, `GET /summary/daily` |
+| Reconciliation | `/reconciliation` | `POST /`, `GET /`, `GET /:id`, count submit, approve, recount, finalize |
+| Business profile | `/profile` | `GET /`, `PUT /` |
+| Alerts | `/alerts` | `POST /check`, `POST /check-expiry`, `GET /`, `GET /summary`, `PUT /:id/read`, `PUT /read-all`, `DELETE /:id` |
+| Reports | `/reports` | `GET /summary`, `GET /low-stock` |
+
+> **Planned (not yet built):** `/suppliers` and `/purchase-orders` endpoint groups, the supplier-dependent reports (`/reports/order-status`, `/reports/recent-orders`, `/reports/supplier-performance`), and the `/sync` endpoint group are designed but not yet implemented. Don't integrate against them.
+
+> **Reconciliation note:** Reconciliation has shipped, but its exact route paths and request/response shapes are still being confirmed with the Backend Lead. Treat the routes in the [API reference](./07_complete-api-reference.md#7-inventory-reconciliation) as the proposed contract until confirmed.
 
 ---
 
-## 6. Offline-First Architecture
+## 6. Offline-first architecture (design)
 
-### 6.1 How It Works
+The offline-first pattern writes every operation to local storage first, then syncs to the server in the background. The UI never waits for a server response.
 
-The offline-first pattern means every write operation is written to local storage first, then synced to the server in the background. The UI never waits for a server response.
+> **Status:** The client-side local store and queue are part of the v1.0 design. The **server sync endpoints (`/sync`) aren't built yet.** Treat this section as the target design, not a wiring diagram for the current API.
 
-**Flow for any write (e.g., recording a sale):**
-1. Attendant confirms the sale in the UI.
-2. Operation written immediately to local database (IndexedDB / SQLite).
-3. UI updates optimistically — stock deducted from local count.
-4. Operation appended to the `sync_queue` table in local storage.
-5. Background service detects connectivity.
-6. Sync service sends queued operations to `POST /sync` in order.
-7. Server returns: `{ applied, conflicts, server_time }`.
-8. If conflicts exist, owner is notified via an in-app alert.
-
-### 6.2 Conflict Resolution Rules
-
-| Conflict | Resolution |
-|---|---|
-| Same product stock modified on two offline devices | Most recent `server_time` wins; flag to owner if stock goes negative |
-| Sale recorded for a product deleted online | Sale preserved; product shown as archived |
-| Same sale voided on two devices | First void wins; second ignored (idempotent) |
-| Price changed offline while sales were made | Sales use offline price; owner notified |
-| Stock goes negative after sync | Flagged to owner dashboard for manual review |
-
-### 6.3 Retry Strategy (Exponential Backoff)
-
-| Attempt | Delay |
-|---|---|
-| 1st | 30 seconds |
-| 2nd | 2 minutes |
-| 3rd | 10 minutes |
-| 4th | 30 minutes |
-| 5th+ | Hourly |
-
-After 3 failed retries: queue item flagged as **Sync Failed**. User sees: *"X sales failed to sync. Tap to retry."*
-
-> ⚠️ `sync_queue` is **append-only**. Never modify or delete items from it. Only update the `status` field.
+For the full design — queue schema, conflict rules, and platform implementation — see the [Offline architecture and sync guide](./06_offline-architecture-sync-guide.md).
 
 ---
 
-## 7. Database Schema Overview
+## 7. Database schema overview
 
 **Conventions:**
-- All primary keys are MongoDB `ObjectId` (auto-generated `_id` field)
-- All monetary values stored as `Number` in Nigerian Naira (NGN) — use `toFixed(2)` for display
-- All timestamps: ISO 8601 UTC — use Mongoose `Date` type
-- All collections have: `createdAt`, `updatedAt` (via Mongoose `timestamps: true`), `deletedAt` (soft delete)
 
-**Core collection relationships:**
-- `businesses` ← root collection. All other collections reference `businessId`
-- `users` → `businessId`
-- `products` → `businessId`, `categoryId`, `supplierId`
-- `stockMovements` → `productId`, `businessId`, `userId` — **IMMUTABLE APPEND-ONLY**
-- `sales` → `businessId`, `attendantId`
-- `saleItems` → `saleId`, `productId` — snapshots `productName` and `unitPrice`
-- `suppliers` → `businessId`
-- `purchaseOrders` → `businessId`, `supplierId`, `createdBy`
-- `alerts` → `businessId`, `productId`
-- `reconciliations` + `reconciliationItems` → `businessId`
+- Primary keys are MongoDB `ObjectId` (auto-generated `_id`).
+- Monetary values are stored as `Number` in Nigerian Naira (NGN). Format with `toFixed(2)` for display.
+- Timestamps are ISO 8601 UTC via the Mongoose `Date` type.
+- Collections include `createdAt` and `updatedAt` (Mongoose `timestamps: true`).
 
-> 🚫 The `stockMovements` collection is the immutable audit log. **No update or delete operations are ever permitted on this collection.**
+**Collections in the current build:**
+
+| Collection | References |
+|---|---|
+| `user` | — |
+| `product` | `categoryId` (`supplierId` reserved for the planned supplier feature) |
+| `category` | — |
+| `sale` | `attendantId` |
+| `saleItem` | `saleId`, `productId` |
+| `inventoryHistory` | `productId`, `userId` — append-only movement log |
+| `reconciliation` | `userId` (count session) |
+| `reconciliationItem` | `reconciliationId`, `productId`, `countedBy` — per-product system/physical counts, variance, status |
+| `alert` | `productId` |
+| `businessProfile` | — |
+
+> **Note:** The earlier `stockEntry` model was removed and replaced by the inventory tracking system (`inventoryHistory`). Treat `inventoryHistory` as the immutable movement log — don't update or delete its records.
+
+> **Planned collections:** `supplier` and `purchaseOrder` are designed but **not yet built**. The `product.supplierId` reference is reserved for when supplier management ships.
 
 ---
 
-## 8. Security Requirements
+## 8. Security requirements
 
-### 8.1 Required for All Endpoints
-- HTTPS only (TLS 1.2+ required; TLS 1.3 preferred)
+### 8.1 Required for all endpoints
+
+- HTTPS only in production (TLS 1.2+; TLS 1.3 preferred)
 - Valid JWT Bearer token on all non-public endpoints
 - RBAC middleware runs before any business logic
 - Input validation on all request parameters
-- Parameterised queries only — use Mongoose methods, never raw string concatenation in queries
-- Rate limiting: 100 req/min per user; 20 req/min for public endpoints
+- Mongoose query methods only — never raw string concatenation
 
-### 8.2 Token & Session Rules
-- JWT signed with RS256. Store private key in env variable; never hardcode.
-- Access token: 24h. Refresh token: 30 days.
-- Session invalidated on password change or role update.
-- OTP rate limit: 3 per phone per 15 minutes.
-- Account lock: 15 minutes after 5 failed login attempts.
+### 8.2 Token rules
+
+- Tokens are signed with `JWT_SECRET` using the `jsonwebtoken` library.
+- Store the secret in an environment variable. Never hardcode it.
+
+> **Note:** Reconciliation approvals write to stock and to the movement log. Enforce RBAC on the approve/finalize routes and log the approving `userId` with every adjustment.
+
+> **Planned:** RS256 signing, refresh-token rotation, OTP rate limiting, and account lockout are designed but not yet implemented in the backend.
 
 ---
 
-## 9. CI/CD Pipeline (GitHub Actions)
+## 9. CI/CD pipeline
 
 | Trigger | Actions |
 |---|---|
-| Every Pull Request | Run tests (`npm test`), lint (`npm run lint`), Mongoose schema validation, build check |
+| Every pull request | Run tests (`npm test`), lint (`npm run lint`), build check |
 | Merge to `main` | Deploy to staging, run smoke tests |
-| Release tag (e.g. `v1.0.0`) | Deploy to production, send team notification |
+| Release tag (for example, `v1.0.0`) | Deploy to production, notify the team |
 
-> ⚠️ Production deployments require Engineering Lead approval. Never deploy to production from a local machine.
+The backend deploys to [Render](https://stocksense-backend-devlopment.onrender.com/).
+
+> **Important:** Production deployments require Engineering Lead approval. Never deploy to production from a local machine.
 
 ---
 
-## 10. Development Standards
+## 10. Development standards
 
-### Git Workflow
+### Git workflow
+
 - Branch naming: `feature/name`, `fix/name`, `chore/name`
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`)
-- All feature branches merge via pull request with at least one reviewer
+- Merge via pull request with at least one reviewer
 
-### Error Codes
+### Error codes
 
-All API errors must return the standard error envelope format with an appropriate HTTP status code. Use the common error codes defined in the API contract (refer to [`07_complete-api-reference.md` — Section 1.3](./07_complete-api-reference.md)):
+All errors return the standard error envelope. Use the status codes in the [API reference](./07_complete-api-reference.md#14-status-codes):
 
-| Code | HTTP | Meaning |
-|---|---|---|
-| `UNAUTHORIZED` | 401 | Invalid or expired token |
-| `FORBIDDEN` | 403 | Role does not have permission |
-| `NOT_FOUND` | 404 | Resource does not exist |
-| `INSUFFICIENT_STOCK` | 422 | Sale quantity exceeds stock |
-| `VALIDATION_ERROR` | 422 | Required field missing or invalid |
-| `CONFLICT` | 409 | Sync conflict detected |
-| `SERVER_ERROR` | 500 | Unexpected server error |
+| Code | Meaning |
+|---|---|
+| `400` | Bad request — malformed or missing input |
+| `401` | Unauthorized — missing or invalid token |
+| `404` | Not found |
+| `500` | Server error |
 
-### Testing Requirements
+### Testing requirements
+
 - Unit tests for all service-layer functions
-- Integration tests for all API endpoints (happy path + error cases)
-- Offline scenario tests: simulate airplane mode, record operations, verify sync
-- RBAC tests: verify each role can/cannot access correct endpoints
+- Integration tests for all endpoints (happy path and error cases)
+- RBAC tests: verify each role can and can't reach the right endpoints
+- Reconciliation tests: variance calculation, approve-updates-stock, and recount paths
 
 ---
 
-## 11. Open Questions
-
-| ID | Question | Owner | Due |
-|---|---|---|---|
-| OQ-001 | Which SMS gateway for OTP? (Termii, InfoBip?) | Backend Lead | Before Sprint 1 |
-| OQ-003 | Web PWA in MVP or Android-only launch? | Product Lead | Before Sprint 1 |
-| OQ-005 | Offline sync: custom engine or open-source? (PowerSync, WatermelonDB?) | Mobile Lead | Sprint 1 |
-| OQ-006 | Backend architecture: monolith or microservices? | Backend Lead | Sprint 1 |
-| OQ-007 | Minimum Android API level: API 26 confirmed? | Mobile Lead | Sprint 1 |
-
----
-
-*StockSense · Developer Onboarding Guide v1.0 · May 2026 · Internal / Confidential*
+*Inventra · Developer onboarding guide · v1.2 · June 2026 · Internal / Confidential*

@@ -1,42 +1,44 @@
-# StockSense — Offline Architecture & Sync Troubleshooting Guide
+# Inventra — Offline architecture and sync guide (design)
 
-**Audience:** Mobile developers, backend engineers, QA engineers, support team
-**Applies To:** StockSense v1.0 — Android app and Progressive Web App (PWA)
-**Key Technologies:** SQLite/Room (Android), IndexedDB/Dexie.js (PWA), WorkManager, Service Worker
-**Owner:** Mobile Lead & Backend Lead
+**Audience:** Mobile developers, backend engineers, QA engineers, support
+**Applies to:** Inventra v1.0 — Android app and Progressive Web App (PWA)
+**Key technologies:** SQLite/Room (Android), IndexedDB/Dexie.js (PWA), WorkManager, Service Worker
+**Owner:** Mobile Lead and Backend Lead
+
+> **Status: design specification**
+> This guide describes Inventra's target offline-first architecture. The **client-side local store and queue** are part of the v1.0 design, but the **server sync endpoints (`/sync`, `/sync/pull`) aren't implemented yet.** Treat the endpoint examples here as the planned contract, not as routes you can call against the current backend. The current backend base path is `/api`.
 
 ---
 
-## 1. Why Offline-First?
+## 1. Why offline-first
 
-Nigeria's average mobile internet speed is 14 Mbps, but connectivity is highly intermittent. SME operators in our target market report losing network access **3 to 6 times per working day**. In non-urban areas, connectivity gaps can last hours.
+Nigeria's mobile internet is fast on paper but highly intermittent. SME operators in our target market report losing network access **3 to 6 times per working day**. In non-urban areas, gaps can last hours.
 
-This is not a rare edge case — it is the **normal operating environment** for StockSense users.
+This is the **normal operating environment** for Inventra users, not a rare edge case.
 
-| Design Approach | Behaviour |
+| Design approach | Behaviour |
 |---|---|
-| **Offline-first (StockSense)** | All writes go to local storage first. Sync happens in the background. App always responds instantly. |
-| Online-first *(rejected)* | Writes go to server first. App is slow or broken without internet. |
-| Online-only *(rejected)* | No local storage. Completely unusable without internet. |
+| Offline-first (Inventra) | All writes go to local storage first. Sync happens in the background. The app always responds instantly. |
+| Online-first (rejected) | Writes go to the server first. The app is slow or broken without internet. |
+| Online-only (rejected) | No local storage. Unusable without internet. |
 
 ---
 
-## 2. Offline Architecture Overview
+## 2. Offline architecture overview
 
-### 2.1 The Two Local Databases
+### 2.1 The two local databases
 
-| Platform | Engine | Library | Target Max Footprint |
+| Platform | Engine | Library | Target max footprint |
 |---|---|---|---|
-| Android (Kotlin / Flutter) | SQLite | Room Persistence Library | Under 50MB |
-| PWA (Chrome / Web) | IndexedDB | Dexie.js | Under 50MB |
+| Android (Kotlin / Flutter) | SQLite | Room Persistence Library | Under 50 MB |
+| PWA (Chrome / web) | IndexedDB | Dexie.js | Under 50 MB |
 
-> ℹ️ The local schema mirrors the MongoDB server collections field-for-field. This ensures offline and online queries use the same logic, and sync mapping stays straightforward.
+> **Note:** The local schema mirrors the MongoDB server collections so offline and online queries use the same logic and sync mapping stays straightforward.
 
-### 2.2 The Sync Queue
+### 2.2 The sync queue
 
-Every write operation is recorded in a local `sync_queue` table before being applied to the main local tables.
+Every write is recorded in a local `sync_queue` table before it's applied to the main local tables.
 
-**`sync_queue` Schema:**
 ```sql
 CREATE TABLE sync_queue (
   id            TEXT PRIMARY KEY,        -- UUID generated on device
@@ -50,6 +52,7 @@ CREATE TABLE sync_queue (
 ```
 
 **Example operation payload (sale):**
+
 ```json
 {
   "id": "a1b2c3d4-...",
@@ -66,80 +69,85 @@ CREATE TABLE sync_queue (
 }
 ```
 
-> 🚫 The `sync_queue` is **append-only**. Never UPDATE or DELETE rows. Only transition the `status` field.
+> **Caution:** The `sync_queue` is append-only. Never `UPDATE` or `DELETE` rows. Only transition the `status` field.
 
-### 2.3 Write Flow (Online or Offline)
+### 2.3 Write flow (online or offline)
 
 Every write follows this sequence regardless of connectivity:
 
-1. User action triggers a write (e.g., attendant confirms a sale).
-2. Operation written to `sync_queue` with `status = 'pending'`.
-3. Local database tables updated immediately (optimistic update).
-4. UI updates instantly — user sees the change without waiting for the server.
-5. Background sync service checks connectivity.
-6. If online: sync queue is processed. If offline: queue waits.
+1. A user action triggers a write (for example, an attendant confirms a sale).
+2. The operation is written to `sync_queue` with `status = 'pending'`.
+3. The local tables update immediately (optimistic update).
+4. The UI updates instantly.
+5. The background sync service checks connectivity.
+6. If online, the queue is processed. If offline, the queue waits.
 
-> ⚠️ The UI must **never** wait for a server response before updating. All UI updates are optimistic — applied immediately from local data.
+> **Caution:** The UI must never wait for a server response before updating. All updates are optimistic.
 
-### 2.4 Read Flow
+### 2.4 Read flow
 
-All reads come from the local database, never directly from the server API:
+All reads come from the local database, never directly from the server:
 
-1. UI requests data (e.g., product list, dashboard summary).
-2. Data served from local SQLite / IndexedDB tables.
+1. The UI requests data.
+2. Data is served from local SQLite / IndexedDB.
 3. If online, a background delta sync keeps local data fresh.
-4. The UI never shows a loading spinner waiting for the server on a read.
+4. Reads never show a server-waiting spinner.
 
-### 2.5 Connectivity Detection
+### 2.5 Connectivity detection
 
-| Platform | API Used | Behaviour |
+| Platform | API | Behaviour |
 |---|---|---|
-| Android | `ConnectivityManager` + `NetworkCallback` | Registers a callback for WiFi and mobile data. Fires sync on network available. |
-| PWA | `navigator.onLine` + online/offline events | Also runs a periodic beacon ping to confirm real connectivity (not just adapter state). |
+| Android | `ConnectivityManager` + `NetworkCallback` | Fires sync when the network becomes available. |
+| PWA | `navigator.onLine` + online/offline events | Also runs a periodic beacon ping to confirm a real route. |
 
-> ⚠️ `navigator.onLine` returns `true` if the device has a network adapter active, even without an actual internet route. Always confirm with a lightweight beacon ping (`HEAD /v1/health`) before syncing.
+> **Caution:** `navigator.onLine` returns `true` whenever a network adapter is active, even without an internet route. Confirm with a lightweight beacon ping before syncing.
 
-### 2.6 Connectivity Status Indicator
+### 2.6 Connectivity status indicator
 
-Every screen shows a persistent status bar:
-- 🟢 **Online — All data synced:** connected and queue is empty
+Every screen shows a status bar:
+
+- 🟢 **Online — all data synced:** connected and the queue is empty
 - 🟡 **Online — X actions syncing:** sync in progress
 - 🔴 **Offline — X actions queued:** no connection detected
-- ⚠️ **Sync Failed — Tap to retry:** one or more queue items failed after max retries
+- ⚠️ **Sync failed — tap to retry:** one or more items failed after max retries
 
 ---
 
-## 3. Sync Engine
+## 3. Sync engine (planned)
 
-### 3.1 Sync Trigger Conditions
+> **Status:** The server endpoints in this section are planned, not implemented.
 
-The sync engine fires when:
-- Network connectivity is restored
-- App returns to foreground and device is online
-- User manually taps **Retry** on a failed sync notification
-- Periodic background check every 5 minutes (Android WorkManager)
+### 3.1 Trigger conditions
 
-### 3.2 Sync Process — Step by Step
+Sync fires when:
 
-1. Connectivity check: confirm online via beacon ping before starting.
-2. Lock the queue: set a processing flag to prevent concurrent sync runs.
+- Connectivity is restored
+- The app returns to the foreground while online
+- The user taps **Retry** on a failed-sync notification
+- A periodic background check runs (Android WorkManager)
+
+### 3.2 Sync process
+
+1. Confirm connectivity via a beacon ping.
+2. Lock the queue to prevent concurrent runs.
 3. Fetch pending items: `SELECT * FROM sync_queue WHERE status = 'pending' ORDER BY created_at ASC`.
-4. Process in order — operations applied in exact order they were created on device.
-5. For each operation, `POST` to `/sync` with the operation payload.
-6. On success (200): update queue item `status` to `'synced'`.
-7. On conflict (409): update `status` to `'conflict'`. Notify owner.
-8. On error (4xx/5xx/timeout): increment `retry_count`. Apply backoff. Status stays `'pending'`.
-9. After max retries: update `status` to `'failed'`. Show **Sync Failed** notification.
-10. Release lock when queue is empty.
+4. Process in creation order.
+5. `POST` each operation to the planned `/sync` endpoint.
+6. On `200`, set `status = 'synced'`.
+7. On `409` (conflict), set `status = 'conflict'` and notify the owner.
+8. On error, increment `retry_count`, apply backoff, and keep `status = 'pending'`.
+9. After max retries, set `status = 'failed'` and show a **Sync failed** notification.
+10. Release the lock when the queue is empty.
 
-**Batch sync endpoint:**
+**Planned batch sync endpoint:**
+
 ```json
-// POST /v1/sync
+// POST /api/sync   (planned)
 {
   "device_id": "device-uuid",
   "last_sync_at": "2026-05-01T08:00:00Z",
   "operations": [
-    { "id": "queue-uuid-1", "movement_type": "sale", "entity": "sale", "payload": { "..." } }
+    { "id": "queue-uuid-1", "movement_type": "sale", "entity": "sale", "payload": {} }
   ]
 }
 
@@ -151,52 +159,48 @@ The sync engine fires when:
 }
 ```
 
-### 3.3 Delta Pull
+### 3.3 Delta pull (planned)
 
 ```
-GET /v1/sync/pull?since=2026-05-01T08:00:00Z&device_id=device-uuid
+GET /api/sync/pull?since=2026-05-01T08:00:00Z&device_id=device-uuid   (planned)
 ```
 
-Returns all records changed after the `since` timestamp, excluding changes originating from this `device_id`. The app applies these to the local database.
+Returns records changed after `since`, excluding changes from this `device_id`.
 
-### 3.4 Retry Strategy
+### 3.4 Retry strategy
 
 | Attempt | Delay |
 |---|---|
-| 1st retry | 30 seconds |
-| 2nd retry | 2 minutes |
-| 3rd retry | 10 minutes |
-| 4th retry | 30 minutes |
+| 1st | 30 seconds |
+| 2nd | 2 minutes |
+| 3rd | 10 minutes |
+| 4th | 30 minutes |
 | 5th+ | Hourly |
-| After 5th | No further retries — item marked `'failed'` |
+| After 5th | No further retries — item marked `failed` |
 
 ---
 
-## 4. Conflict Resolution
+## 4. Conflict resolution (planned)
 
-### 4.1 Conflict Resolution Rules
+### 4.1 Rules
 
-| Conflict Scenario | Resolution Rule | Notify Owner? |
+| Scenario | Resolution | Notify owner? |
 |---|---|---|
-| Same product stock modified on two offline devices | Most recent `server_time` wins. Both changes logged. Flag if stock goes negative. | Yes — if stock goes negative |
+| Same product stock modified on two offline devices | Most recent `server_time` wins. Both logged. | Yes, if stock goes negative |
 | Sale recorded offline for a product deleted online | Sale preserved. Product shown as `[Archived]`. | No |
 | Same sale voided on two devices | First void wins. Second ignored (idempotent). | No |
-| Price changed on one device while offline sales made at old price | Sales preserved at offline price. | Yes — price mismatch alert |
-| Stock goes negative after all offline sales synced | All sales applied. Stock set to 0. | Yes — mandatory |
-| Two managers create POs for same product simultaneously | Both POs created. Owner can cancel the duplicate. | No |
+| Price changed while offline sales were made at the old price | Sales preserved at the offline price. | Yes — price-mismatch alert |
+| Stock goes negative after all offline sales sync | All sales applied. Stock set to 0. | Yes — mandatory |
 
-> 🚫 Conflicts resulting in negative stock or price mismatches are **never auto-resolved**. They always require explicit owner review.
+> **Caution:** Negative-stock and price-mismatch conflicts are never auto-resolved. They always require owner review.
 
-### 4.2 Conflict Notification
+### 4.2 Conflict notification
 
-When a conflict requires owner attention:
-- A **Conflict** badge appears on the Alerts icon in the bottom nav
-- Alert type is `SYNC_CONFLICT` with a description of the specific issue
-- Owner taps the alert to see details and take action
+When a conflict needs attention, a **Conflict** badge appears on the Alerts icon, the alert type is `SYNC_CONFLICT`, and the owner taps it to act.
 
 ---
 
-## 5. Platform-Specific Implementation
+## 5. Platform-specific implementation
 
 ### 5.1 Android — WorkManager
 
@@ -213,146 +217,100 @@ val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
   .build()
 
 WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-  "stocksense_sync",
+  "inventra_sync",
   ExistingPeriodicWorkPolicy.KEEP,
   syncRequest
 )
 ```
 
-> ⚠️ Run sync on a background thread. Use Kotlin coroutines with `Dispatchers.IO` inside `doWork()`. Never run on the main (UI) thread.
+> **Caution:** Run sync on a background thread. Use Kotlin coroutines with `Dispatchers.IO` inside `doWork()`. Never run on the main thread.
 
-> ℹ️ Use Room's `@Transaction` annotation on methods that write to multiple tables (e.g., creating a sale AND deducting stock). If either operation fails, both are rolled back.
+> **Note:** Use Room's `@Transaction` annotation when a method writes to multiple tables (for example, recording a sale and deducting stock). If either write fails, both roll back.
 
-### 5.2 PWA — Service Worker Caching Strategy
+### 5.2 PWA — Service Worker caching
 
-| Asset Type | Strategy | Rationale |
+| Asset type | Strategy | Rationale |
 |---|---|---|
-| App shell (HTML, CSS, JS) | Cache-First | Static assets — always serve instantly from cache |
-| API reads (GET requests) | Network-First with Cache Fallback | Try fresh data; serve from cache if offline |
-| API writes (POST, PUT, DELETE) | Queue (Background Sync API) | Never cache writes; queue them in `sync_queue` |
-| Report PDFs | No caching | Generated on demand; too large to cache |
+| App shell (HTML, CSS, JS) | Cache-first | Static assets — serve instantly |
+| API reads (GET) | Network-first with cache fallback | Try fresh; serve cache if offline |
+| API writes (POST, PUT, DELETE) | Queue (Background Sync API) | Never cache writes; queue them |
+| Report PDFs | No caching | Generated on demand |
 
-**Background Sync API:**
 ```javascript
 // Register sync when an operation is queued
 navigator.serviceWorker.ready.then(registration => {
-  registration.sync.register('stocksense-sync');
+  registration.sync.register('inventra-sync');
 });
 
 // In the service worker
 self.addEventListener('sync', event => {
-  if (event.tag === 'stocksense-sync') {
+  if (event.tag === 'inventra-sync') {
     event.waitUntil(processSyncQueue());
   }
 });
 ```
 
-> ⚠️ Background Sync is supported in Chrome for Android but limited in Safari/iOS. For iOS (Phase 2), fall back to processing the queue on `visibilitychange` event.
+> **Caution:** Background Sync is supported in Chrome for Android but limited in Safari/iOS. For iOS (Phase 2), fall back to processing the queue on the `visibilitychange` event.
 
 ---
 
-## 6. Data Cached Offline
+## 6. Data cached offline
 
-| Data Type | Strategy | Refresh Interval | Notes |
+| Data type | Strategy | Refresh | Notes |
 |---|---|---|---|
-| Product catalogue | Persistent local copy | On every sync | Includes archived products (needed for historical sales display) |
-| Current stock levels | Persistent local copy | On every sync | Updated immediately on every sale or movement |
-| Pending sales | Full local storage | Always local | Never expire or purge pending items |
-| Recent sales (last 30 days) | Local copy | On every sync | Needed for offline sales history |
-| Active alerts | Local copy | On every sync | Allows attendants to see alerts without connectivity |
-| Supplier directory | Persistent local copy | On every sync | Needed for offline PO creation |
-| User profile & permissions | Persistent local copy | On login / role change | RBAC must work offline |
-| Reports (last 7 days) | Cached response | Hourly when online | Preview only — export requires connectivity |
-| Reconciliation in progress | Full local storage | Continuous | Must survive app close and network loss |
+| Product catalogue | Persistent local copy | On every sync | Includes archived products |
+| Current stock levels | Persistent local copy | On every sync | Updated on every movement |
+| Pending sales | Full local storage | Always local | Never expire or purge |
+| Recent sales (last 30 days) | Local copy | On every sync | For offline history |
+| Active alerts | Local copy | On every sync | Visible without connectivity |
+| Reconciliation sessions | Local copy | On every sync | For offline stock counts |
+| Supplier directory | Persistent local copy | On every sync | **Planned** — supports the not-yet-built supplier feature |
+| User profile and permissions | Persistent local copy | On login / role change | RBAC works offline |
 
 ---
 
-## 7. Sync Troubleshooting Guide
+## 7. Troubleshooting (when sync ships)
 
-### 7.1 User-Facing Issues
+### 7.1 User-facing issues
 
-#### "My sale doesn't appear on the owner's phone."
+**"My sale doesn't appear on the owner's phone."**
 
-1. Ask the attendant: is there a sync badge showing pending operations?
-2. If yes: the sale was recorded offline and is queued. Ask them to check their internet connection.
-3. If internet is available but sync isn't completing: tap the sync badge to force a manual retry.
-4. If the badge shows **Sync Failed**: check the device time (see device clock issue below).
-5. If there is no sync badge and no sale: check the attendant's own sales history in the app.
+1. Check whether a sync badge shows pending operations.
+2. If yes, the sale is queued — check the internet connection.
+3. If online but not syncing, tap the badge to retry.
+4. If the badge shows **Sync failed**, check the device clock.
 
-#### "I see a Sync Failed notification."
+**"I see a Sync failed notification."**
 
 1. Tap the notification to see which operations failed.
-2. Tap **Retry**. If it succeeds: resolved.
-3. If retry fails again: verify the internet connection by opening a browser.
-4. If connection is good and sync still fails: note the error message and contact support with: device model, Android version, and the error text.
+2. Tap **Retry**.
+3. If it fails again, verify the connection by opening a browser.
+4. If the connection is good, note the error and contact support with the device model and error text.
 
-#### "I have a conflict alert on my dashboard."
-
-1. Tap the conflict alert to see the details.
-2. If it's a negative stock conflict: physically count the product and run a Reconciliation to correct the stock.
-3. If it's a price mismatch: verify the correct selling price on the product and update if needed.
-4. Mark the conflict alert as Resolved once action is taken.
-
-#### "Sales recorded on two phones show double stock deductions."
-
-1. The server applied both sales — both are valid records.
-2. A negative stock conflict is raised on the owner dashboard.
-3. Verify with both attendants whether both sales actually happened.
-4. If one is an error: void the incorrect sale. Stock will restore.
-5. If both are genuine: the shop oversold. Create a corrective stock adjustment.
-
----
-
-### 7.2 Developer Debugging
+### 7.2 Developer debugging
 
 **Inspect the sync queue on Android:**
+
 ```bash
-adb shell run-as com.stocksense.app sqlite3 databases/stocksense.db
+adb shell run-as com.inventra.app sqlite3 databases/inventra.db
 SELECT id, json_extract(operation, '$.type'), status, retry_count, last_error
 FROM sync_queue WHERE status != 'synced' ORDER BY created_at ASC;
 ```
 
-**Inspect IndexedDB on PWA (Chrome DevTools):**
-1. Open DevTools (F12).
-2. Go to **Application > Storage > IndexedDB > StockSenseDB**.
-3. Open the `sync_queue` object store.
-
-**Backend log patterns to search for:**
-```
-# Successful sync
-level=INFO  event="sync.applied"  business_id=<uuid>  operations=5
-
-# Conflict detected
-level=WARN  event="sync.conflict"  business_id=<uuid>  reason="STOCK_NEGATIVE"
-
-# Sync failure
-level=ERROR  event="sync.error"  business_id=<uuid>  error="..."
-```
-
-**Sync endpoint error codes:**
-
-| Code | HTTP | Meaning | Resolution |
-|---|---|---|---|
-| `SYNC_CONFLICT` | 409 | Conflict detected | Notify owner. Apply conflict rules. Return partial success. |
-| `VALIDATION_ERROR` | 422 | Malformed operation payload | Log and skip the bad operation. Continue queue. |
-| `INSUFFICIENT_STOCK` | 422 | Sale pushes stock below zero | Flag as conflict. Notify owner. |
-| `STALE_OPERATION` | 409 | Record updated since last sync | Apply last-write-wins. Log both versions. |
-| `UNAUTHORIZED` | 401 | JWT expired during long offline period | Client refreshes token and retries sync. |
-| `SERVER_ERROR` | 500 | Unexpected server error | Retry with backoff. Escalate if persistent. |
+**Inspect IndexedDB on the PWA:** open Chrome DevTools (F12) > **Application > Storage > IndexedDB > InventraDB > sync_queue**.
 
 ---
 
-## 8. Testing Offline Behaviour
+## 8. Testing offline behaviour
 
-| Test Case | Steps | Expected Result |
+| Test case | Steps | Expected result |
 |---|---|---|
-| Basic offline sale | Enable airplane mode → record a sale → confirm | Sale in attendant's list immediately. Sync badge shows 1 pending. |
-| Sync on reconnect | After offline sale, re-enable WiFi/data | Sync badge disappears within 30 seconds. Sale appears on owner's list. |
-| App close during queue | Enable airplane mode → record 3 sales → close app completely → re-enable data → reopen | All 3 sales sync. No data loss. |
-| Concurrent offline negative stock | Device A + B: both offline, both sell last unit. Reconnect both. | Both sales applied. Stock goes to -1. Conflict alert on owner dashboard. |
-| Offline reconciliation | Enable airplane mode → run full reconciliation → finalize | Completes offline. Syncs when reconnected. |
+| Basic offline sale | Airplane mode → record a sale → confirm | Sale in the attendant's list immediately. Badge shows 1 pending. |
+| Sync on reconnect | After an offline sale, re-enable data | Badge clears within 30 seconds. Sale appears on the owner's list. |
+| App close during queue | Airplane mode → record 3 sales → close app → re-enable data → reopen | All 3 sync. No data loss. |
+| Concurrent negative stock | Two devices offline both sell the last unit → reconnect both | Both applied. Stock goes to -1. Conflict alert raised. |
 | Large queue sync | Record 50 sales offline → reconnect | All 50 sync within 30 seconds on 3G. No losses or duplicates. |
 
 ---
 
-*StockSense · Offline Architecture & Sync Troubleshooting Guide v1.0 · May 2026 · Internal / Confidential*
+*Inventra · Offline architecture and sync guide · v1.2 (design) · June 2026 · Internal / Confidential*

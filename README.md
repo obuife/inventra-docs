@@ -1,166 +1,202 @@
-# StockSense — Technical Documentation
+<div align="center">
 
-> **"Know your stock. Run your business."**
+# Inventra
 
-This repository contains all technical writing deliverables produced for **StockSense v1.0** — a mobile-first, offline-capable inventory and sales management system built for small and medium-sized enterprises (SMEs) across Nigeria and Sub-Saharan Africa.
+### Know your stock. Run your business.
 
-All documents were produced by the StockSense Technical Writing Team as part of the v1.0 MVP sprint, May 2026.
+**A mobile-first, offline-capable inventory and sales management system for SMEs across Nigeria and Sub-Saharan Africa.**
+
+[![Status](https://img.shields.io/badge/status-MVP%20v1.0-success)](#)
+[![Platform](https://img.shields.io/badge/platform-Android%208.0%2B%20%C2%B7%20PWA-blue)](#)
+[![Backend](https://img.shields.io/badge/backend-Node.js%20%2B%20Express-339933)](#)
+[![Database](https://img.shields.io/badge/database-MongoDB-47A248)](#)
+[![License](https://img.shields.io/badge/license-Internal-lightgrey)](#)
+
+[Documentation](#documentation) · [Quick start](#quick-start) · [API reference](./07_complete-api-reference.md) · [Contributing](#contributing)
+
+</div>
 
 ---
 
-## What is StockSense?
+## Table of contents
 
-StockSense helps Nigerian shop owners, pharmacists, and wholesalers:
+- [Overview](#overview)
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Documentation](#documentation)
+- [Quick start](#quick-start)
+- [Project status](#project-status)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Team](#team)
 
-- Track inventory in real time — from any Android smartphone
-- Record sales in 3 taps, with or without internet
+---
+
+## Overview
+
+Inventra helps Nigerian shop owners, pharmacists, and wholesalers:
+
+- Track inventory in real time from any Android smartphone
+- Record sales in a few taps
+- Reconcile physical stock against system records and act on the variance
 - Get alerts before stock runs out or medicines expire
 - See exactly what every staff member has sold
 - Generate and export sales and inventory reports
 
-It is designed for users with basic smartphone skills, unreliable internet, and no tolerance for complicated software. If you can use WhatsApp, you can use StockSense.
+It's built for users with basic smartphone skills and unreliable internet. If you can use WhatsApp, you can use Inventra.
 
----
-
-## Who This Documentation Is For
-
-| Audience | Documents to Read |
-|---|---|
-| **Business Owners & Shop Staff** | User Help Guide & FAQ |
-| **Store Admins & Managers** | Admin Guide & Deployment Runbook |
-| **Backend & Frontend Developers** | Developer Onboarding Guide · API Reference Manual |
-| **Mobile Developers** | Developer Onboarding Guide · Offline Architecture & Sync Guide |
-| **QA Engineers** | Offline Architecture & Sync Guide · API Reference Manual |
-| **DevOps / Release Team** | Admin Guide & Deployment Runbook |
-| **Product & Design Teams** | Release Notes · Demo Video Script |
-| **New Team Members (All Tracks)** | Start with the Developer Onboarding Guide |
-
----
-
-## Document Index
-
-| # | Document | Format | Audience | Description |
-|---|---|---|---|---|
-| 1 | [Release Notes v1.0](./01_release-notes-v1.0.md) | Markdown / Word | All teams | Full feature changelog for the MVP launch — what shipped, what was deferred, performance benchmarks, and security highlights |
-| 2 | [Demo Video Script](./02_demo-video-script.md) | Markdown / Word | Product · Design · Video | Scene-by-scene script with voiceover, screen recording instructions, and narrator guidance for the 3:30 launch video |
-| 3 | [Developer Onboarding Guide](./03_developer-onboarding-guide.md) | Markdown / Word | All developers | Repo structure, local environment setup, API overview, offline architecture summary, CI/CD pipeline, and coding standards |
-| 4 | [End-User Help Guide & FAQ](./04_user-help-guide-faq.md) | Markdown / Word | End users · Pilot participants | Step-by-step feature walkthroughs, pilot onboarding packet, and a full FAQ in plain language — no technical jargon |
-| 5 | [Admin Guide & Deployment Runbook](./05_admin-guide-deployment-runbook.md) | Markdown / Word | Admins · DevOps | RBAC permission matrix, reconciliation guide, user management, full deployment steps, rollback procedure, and maintenance schedule |
-| 6 | [Offline Architecture & Sync Troubleshooting Guide](./06_offline-architecture-sync-guide.md) | Markdown / Word | Mobile · Backend · QA | Deep dive into the offline-first architecture, sync queue design, conflict resolution rules, platform-specific implementation, and troubleshooting playbook |
-| 7 | [Complete API Reference Manual](./07_complete-api-reference.md) | Markdown / Word | Backend · Mobile · QA | Full endpoint reference for all 11 API groups — request/response schemas, parameter tables, error codes, and example payloads |
-
----
-
-## Document Formats
-
-Every document is available in two formats:
-
-- **Markdown (`.md`)** — Lives in this repository. Renders directly on GitHub with full formatting, tables, and code blocks. Use these for quick reference during development.
-- **Microsoft Word (`.docx`)** — Available for download. Use these for sharing with stakeholders, printing, or submitting as formal deliverables.
-
----
-
-## Product Context
+> **Note:** Inventra was previously named StockSense. The backend repository and Render deployment URL still use the original `stocksense` slug because they haven't been renamed.
 
 | Field | Detail |
 |---|---|
-| **Product Name** | StockSense |
-| **Version** | 1.0 — MVP Launch |
-| **Target Market** | Nigerian SMEs — retail shops, pharmacies, wholesalers, mini-marts |
-| **Primary Platform** | Android 8.0+ · Progressive Web App (PWA) |
-| **Key Differentiator** | Full offline functionality — works without internet on 2G/3G networks |
-| **North Star Metric** | Inventory Accuracy Rate — target 90%+ at Day 30 |
-| **PRD Version** | v1.1 Merged — May 2026 |
+| Product name | Inventra |
+| Version | 1.0 — MVP launch |
+| Target market | Nigerian SMEs — retail shops, pharmacies, wholesalers, mini-marts |
+| Primary platform | Android 8.0+ · Progressive Web App (PWA) |
+| Backend repository | [`Triaaz/StockSense-Backend-Devlopment`](https://github.com/Triaaz/StockSense-Backend-Devlopment) |
+| Live API | [`stocksense-backend-devlopment.onrender.com/api`](https://stocksense-backend-devlopment.onrender.com/) |
 
 ---
 
-## Key Technical Decisions (v1.0)
+## Features
 
-These decisions are referenced throughout the documentation. If any have changed, the relevant documents should be updated.
+- **Inventory management** — products, categories, stock-in/stock-out, and an append-only movement history
+- **Sales** — quick single and multi-item sales, attendant attribution, void with reason, daily summaries
+- **Inventory reconciliation** — stock-count sessions that compare system count against a physical count, value the variance in Naira, and let the owner approve the adjustment or request a recount
+- **Alerts** — low-stock and expiry checks, with read/summary/delete management
+- **Reports and dashboard** — dashboard summary and low-stock report
+- **Role-based access control** — Admin, Manager, and Attendant roles enforced on every endpoint
 
-| Decision | Choice Made | Status |
+See [Project status](#project-status) for what's shipped versus planned.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Client | React + Next.js PWA · Android (Kotlin or Flutter) |
+| API | Node.js + Express.js |
+| Database | MongoDB (Atlas / local) + Mongoose |
+| Auth | JWT (`jsonwebtoken`, `JWT_SECRET`) |
+| Local storage | SQLite via Room (Android) · IndexedDB via Dexie.js (PWA) |
+| Hosting | Render (API) · Vercel/Netlify (PWA) |
+
+---
+
+## Documentation
+
+| # | Document | Audience |
 |---|---|---|
-| Mobile platform | Android-first (iOS in Phase 2) | Confirmed |
-| Frontend | React + Next.js PWA | Confirmed |
-| Backend | Node.js + Express.js | Confirmed |
-| Database | MongoDB (Atlas / local) + Redis (cache) | Confirmed |
-| Local storage — Android | SQLite via Room | Confirmed |
-| Local storage — PWA | IndexedDB via Dexie.js | Confirmed |
-| Authentication | Phone OTP + JWT (RS256) | Confirmed |
-| SMS / OTP provider | Termii or InfoBip | ⚠️ Pending — OQ-001 |
-| Background sync — Android | WorkManager | Confirmed |
-| Offline sync engine | Custom queue (vs. PowerSync/WatermelonDB) | ⚠️ Pending — OQ-005 |
-| Minimum Android API level | API 26 (Android 8.0 Oreo) | ⚠️ Pending — OQ-007 |
+| 1 | [Release notes v1.0](./01_release-notes-v1.0.md) | All teams |
+| 2 | [Demo video script](./02_demo-video-script.md) | Product · Design · Video |
+| 3 | [Developer onboarding guide](./03_developer-onboarding-guide.md) | All developers |
+| 4 | [End-user help guide and FAQ](./04_user-help-guide-faq.md) | End users · Pilot participants |
+| 5 | [Admin guide and deployment runbook](./05_admin-guide-deployment-runbook.md) | Admins · DevOps |
+| 6 | [Offline architecture and sync guide](./06_offline-architecture-sync-guide.md) | Mobile · Backend · QA |
+| 7 | [Complete API reference](./07_complete-api-reference.md) | Backend · Mobile · QA |
 
-> ⚠️ Items marked **Pending** are open questions from the PRD. When resolved, update the relevant documents and remove the flag.
+New to the project? Start with the [Developer onboarding guide](./03_developer-onboarding-guide.md).
 
 ---
 
-## Open Questions Tracker
+## Quick start
 
-These were unresolved at the time of documentation. Engineering leads own resolution.
+Get the backend running locally in five steps.
 
-| ID | Question | Owner | Affects |
-|---|---|---|---|
-| OQ-001 | Which SMS gateway for OTP — Termii or InfoBip? | Backend Lead | Dev Onboarding Guide · API Reference |
-| OQ-003 | Is the PWA included in the MVP launch or Android-only? | Product Lead | Release Notes · Dev Onboarding Guide |
-| OQ-005 | Offline sync: custom engine or open-source (PowerSync, WatermelonDB)? | Mobile Lead | Offline Architecture Guide · Dev Onboarding Guide |
-| OQ-006 | Backend architecture: monolith or microservices? | Backend Lead | Dev Onboarding Guide · API Reference |
-| OQ-007 | Minimum Android API level — confirmed as API 26? | Mobile Lead | Release Notes · Dev Onboarding Guide |
-| OQ-008 | Is dark mode in MVP scope? | Design Lead | Release Notes |
-| OQ-009 | Biometric authentication — MVP or Phase 2? | Product Lead · Mobile Lead | Release Notes · Admin Guide |
+### Prerequisites
+
+- Node.js 18 LTS or higher
+- MongoDB 6.0+ (local) or a MongoDB Atlas account
+- Git 2.40+
+
+### Steps
+
+```bash
+# 1. Clone the backend repository
+git clone https://github.com/Triaaz/StockSense-Backend-Devlopment.git
+cd StockSense-Backend-Devlopment
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment variables
+cp .env.example .env
+```
+
+Set these values in `.env`:
+
+```
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/inventra
+JWT_SECRET=your_secret_here
+```
+
+```bash
+# 4. Seed the database (optional)
+npm run seed
+
+# 5. Start the server
+npm run dev
+```
+
+The API is available at `http://localhost:5000/api`. For the full walkthrough, see the [Developer onboarding guide](./03_developer-onboarding-guide.md).
 
 ---
 
-## Sprint & Release Timeline
+## Project status
 
-| Sprint | Goal | Status |
-|---|---|---|
-| Week 1 | Foundation — Auth, Products, Offline shell | In Progress |
-| Week 2 | Core Features — Sales, Alerts, Supplier, Sync | Upcoming |
-| Week 3 | Intelligence & Polish — Reports, Reconciliation, Dashboard | Upcoming |
-| Week 4 | QA, Security Audit, UAT, Production Launch | Upcoming |
-
----
-
-## How to Use This Repository
-
-### Viewing documents on GitHub
-Click any `.md` file in the file list above. GitHub renders it automatically as a formatted page — headings, tables, code blocks, and all.
-
-### Downloading Word documents
-The `.docx` versions of all 7 documents are available as downloadable files. Click the file, then click the **Download** button.
-
-### Suggesting a change
-If you spot an inaccuracy — a wrong API endpoint, an outdated permission, a feature description that doesn't match what was built — please:
-1. Open an **Issue** on this repository describing what needs to change and why
-2. Or contact the Technical Writing team directly via the team communication channel
-
-### For developers setting up locally
-Start with the [Developer Onboarding Guide](./03_developer-onboarding-guide.md). Everything you need — repo structure, environment variables, database setup, and how to run the API — is in Section 4.
+| Area | Status |
+|---|---|
+| Auth (email/password + JWT) | ✅ Available |
+| Products, categories, inventory | ✅ Available |
+| Sales (record, void, history, summary) | ✅ Available |
+| Inventory reconciliation (stock counts, variance, approve/recount) | ✅ Available |
+| Alerts (low-stock, expiry) | ✅ Available |
+| Reports and dashboard (summary, low-stock) | ✅ Available |
+| Business profile | ✅ Available |
+| Suppliers and purchase orders | 🚧 Planned |
+| Order-status and supplier-performance reports | 🚧 Planned |
+| Phone OTP / SMS provider | 🚧 Planned |
+| Redis caching and queues | 🚧 Planned |
+| Offline sync engine (`/sync`) | 🚧 Planned |
 
 ---
 
-## Technical Writing Team
+## Roadmap
 
-This documentation was produced by the **StockSense Technical Writing Team** as a capstone deliverable for the Techcrush Technical Writing Bootcamp, in collaboration with the StockSense product and engineering teams.
+**Phase 2** — Supplier management and purchase orders, order-status and supplier-performance reporting, offline sync engine, phone OTP, Redis, WhatsApp integration, barcode scanning, multi-store, native iOS, local-language UI.
+
+**Phase 3** — AI demand forecasting, WhatsApp chatbot, supplier e-ordering, billing integrations.
+
+---
+
+## Contributing
+
+Spotted an inaccuracy — a wrong endpoint, an outdated permission, or a feature description that doesn't match what was built?
+
+1. Open an **issue** describing the change and why, or
+2. Contact the Technical Writing team via the team channel.
+
+Documentation follows a docs-as-code workflow: every doc is GitHub Flavored Markdown, version-controlled in this repo, and changes are tracked in the [CHANGELOG](./CHANGELOG.md).
+
+---
+
+## Team
+
+Produced by the **Inventra Technical Writing Team** as a capstone deliverable for the Techcrush Technical Writing Bootcamp, with the Inventra product and engineering teams.
 
 | Role | Responsibility |
 |---|---|
-| Technical Writers | All 7 documents — research, structure, writing, and review |
+| Technical Writers | All 7 documents — research, structure, writing, review |
 | Engineering Lead | Technical accuracy review |
-| Product Manager | Scope and PRD alignment review |
-| Design Lead | UX copy and wireframe description review |
+| Product Manager | Scope and PRD alignment |
+| Design Lead | UX copy and wireframe review |
 
 ---
 
-## Version History
+<div align="center">
 
-| Version | Date | Changes |
-|---|---|---|
-| 1.0 | May 2026 | Initial release — all 7 documents published for v1.0 MVP launch |
+*Inventra · Technical documentation · v1.2 · June 2026*
 
----
-
-*StockSense Technical Documentation · v1.0 · May 2026*
-*Produced by the StockSense Technical Writing Team · Techcrush Technical Writing Bootcamp*
+</div>

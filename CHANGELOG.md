@@ -1,136 +1,125 @@
 # Changelog
 
-All notable changes to StockSense documentation will be recorded in this file.
+All notable changes to Inventra documentation are recorded in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions.
-Versions align with the StockSense product release cycle.
-
----
-
-## [1.0.1] — June 2026 — Database Correction
-
-### Changed
-
-- **03 Developer Onboarding Guide** — Updated database technology from PostgreSQL + Prisma to
-  MongoDB (Atlas / local) + Mongoose, reflecting the actual implementation used in development.
-  Updated environment variable from `DATABASE_URL` to `MONGODB_URI`, replaced Prisma migration
-  commands with `npm run seed`, updated DB schema conventions to use MongoDB `ObjectId` and
-  Mongoose `timestamps`, and corrected collection naming to camelCase.
-
-- **05 Admin Guide & Deployment Runbook** — Updated production infrastructure table to MongoDB
-  Atlas. Replaced `pg_dump` backup command with `mongodump` and `pg_restore` rollback command
-  with `mongorestore`. Updated pre-deployment checklist to remove Prisma migration references.
-
-- **06 Offline Architecture & Sync Guide** — Updated local schema mirroring note from
-  PostgreSQL to MongoDB collections.
-
-- **07 Complete API Reference Manual** — Updated monetary value type in the data types appendix
-  from `DECIMAL(12,2)` to MongoDB `Number` serialised as a 2-decimal string in JSON.
-
-- **README.md** — Updated Key Technical Decisions table: database entry changed from
-  PostgreSQL to MongoDB (Atlas / local).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versions align with the Inventra product release cycle.
 
 ---
 
-## [1.0.0] — May 2026 — MVP Launch
+## [1.2.0] — June 2026 — Reconciliation shipped; supplier management deferred
 
-This is the first full release of StockSense technical documentation,
-produced for the v1.0 MVP launch.
+A reconciliation with the engineering team: **inventory reconciliation (REC-01) has been built and is now Available**, while **supplier management — including the supplier directory, purchase orders, and the supplier-performance report — has not been built and is reclassified as Planned**.
 
 ### Added
 
-- **01 Release Notes v1.0** — Full feature changelog for the MVP launch,
-  covering all 8 feature epics, performance benchmarks, known limitations,
-  security highlights, and upgrade instructions for Android and PWA.
+- **Inventory reconciliation** documented as a shipped feature across the set, based on the engineering team's screenshots of the Stock count screen: count sessions (**New Count**), progress tracking, system vs physical count, difference, **Result** (Match/Loss/Surplus), **value impact** and session **variance value** in Naira, **Status** (Approved/Pending/Recount), date/status filters, the **Product Discrepancy Details** view with a reason field, and the **Approve Adjustment** / **Request Recount** actions with an approval confirmation prompt.
+  - **01 Release notes** — new section 2.5 (REC-01–REC-06) marked Available.
+  - **07 API reference** — new section 7, `/reconciliation`, with the reconciliation route set and discrepancy-item response shape.
+  - **03 Developer onboarding** — added the reconciliation endpoint group, `reconciliation` / `reconciliationItem` collections, and reconciliation testing requirements.
+  - **05 Admin guide** — section 3 reconciliation promoted from "planned feature" to Available and rewritten to match the shipped UI; reconciliation rows added to the RBAC matrix; a reconciliation smoke test added.
+  - **04 User help guide** — new "Run a stock count (reconciliation)" walkthrough and FAQ entry.
+  - **02 Demo video script** — new Scene 09 demonstrating reconciliation.
 
-- **02 Demo Video Script** — Complete 3:30 scene-by-scene production script
-  with voiceover, screen recording instructions, narrator guidance, and a
-  pre-recording device checklist.
+### Changed
 
-- **03 Developer Onboarding Guide** — Repository structure, local environment
-  setup for backend/frontend/mobile tracks, API overview, offline architecture
-  summary, CI/CD pipeline, security requirements, and open questions tracker.
+- **Supplier management → Planned** across all documents. The supplier directory (SUP-01), purchase orders (SUP-02), supplier performance (SUP-03), and the supplier-dependent reports (order status, recent orders, supplier-performance) are reclassified from Available to Planned (Phase 2).
+  - **README** — features, project status, and roadmap updated; suppliers/POs moved to Planned, reconciliation added as Available.
+  - **01 Release notes** — section 2.8 "Supplier management (planned)"; DASH-03 and DASH-04 marked Planned; known-limitations and planned tables updated.
+  - **07 API reference** — Suppliers and Purchase orders sections removed from the live API and moved to Planned; `/reports/order-status`, `/reports/recent-orders`, `/reports/supplier-performance` marked Planned; sections renumbered.
+  - **03 Developer onboarding** — `/suppliers` and `/purchase-orders` moved to the planned note; `supplier` and `purchaseOrder` collections marked planned; `product.supplierId` noted as reserved.
+  - **05 Admin guide** — "Manage suppliers" and "Create purchase orders" removed from the RBAC matrix (planned note added); supplier/PO services marked planned in the infrastructure table.
+  - **04 User help guide** — "Manage suppliers" walkthrough replaced with a "coming soon" note; the low-stock alert step no longer creates a purchase order; supplier FAQ added.
+  - **06 Offline guide** — supplier-directory caching row flagged as supporting a planned feature; the duplicate-PO conflict scenario removed; reconciliation sessions added to offline-cached data.
 
-- **04 End-User Help Guide & FAQ** — Three-part document covering the pilot
-  user onboarding packet, full feature walkthroughs for all core flows, and a
-  comprehensive FAQ in plain language for Nigerian SME users.
+- **Document set version** bumped to **v1.2** across all footers.
 
-- **05 Admin Guide & Deployment Runbook** — Two-part document covering the
-  business owner admin guide (RBAC matrix, reconciliation walkthrough, user
-  management, system settings) and the full production deployment runbook
-  (pre-deployment checklist, deployment steps, smoke tests, incident response,
-  rollback procedure, maintenance schedule).
+### Removed
 
-- **06 Offline Architecture & Sync Troubleshooting Guide** — Deep dive into
-  the offline-first architecture, sync queue design and schema, write/read
-  flows, connectivity detection, conflict resolution rules, platform-specific
-  implementation (Android WorkManager + PWA Service Worker), offline data
-  cache table, and a full troubleshooting playbook for users and developers.
+- The "Suppliers and purchase orders" available-feature claims and the standalone "Inventory reconciliation (planned)" entries from the prior revision.
 
-- **07 Complete API Reference Manual** — Full endpoint reference for all 11
-  API groups (Authentication, Products, Sales, Stock Adjustments, Suppliers,
-  Purchase Orders, Alerts, Reconciliation, Reports, Sync, User Management)
-  with request/response schemas, parameter tables, error codes, and example
-  payloads.
+---
 
-- **README.md** — Repository front page with project overview, audience
-  guide, full document index, product context, key technical decisions,
-  open questions tracker, and sprint timeline.
+## [1.1.0] — June 2026 — Rename and backend reconciliation
 
-### Product Version
-- Aligned to StockSense PRD v1.1 (Merged) — May 2026
+### Changed
 
-### Platforms Covered
-- Android 8.0+ (Kotlin / Flutter — TBD)
-- Progressive Web App (React + Next.js)
-- REST API (Node.js + Express.js)
+- **Product rename** — Renamed the product from StockSense to **Inventra** across all documents. Repository and Render deployment URLs are unchanged because the backend repo hasn't been renamed.
+
+- **07 API reference** — Rewrote against the live backend. Base path changed from `/v1` to `/api`; base URL updated to the Render deployment on port 5000. Added the **Categories**, **Inventory** (`/inventory/stock-in`, `/stock-out`, `/update`, `/history`), and **Business profile** (`/profile`) groups. Updated **Sales**, **Alerts**, and **Reports** endpoints to match the backend. Simplified the error format to `{ message, error }`. Moved OTP, PIN, token refresh, reconciliation, and sync endpoints to a **Planned** section.
+
+- **03 Developer onboarding guide** — Updated auth to JWT via `jsonwebtoken` with `JWT_SECRET` (removed RS256, refresh tokens, OTP, PIN as current features). Updated env vars to `PORT`, `MONGO_URI` / `LIVE_URL`, `JWT_SECRET`. Marked Redis and S3 as not implemented. Updated the collection list to the actual schema (`user`, `product`, `supplier`, `category`, `purchaseOrder`, `sale`, `saleItem`, `inventoryHistory`, `alert`, `businessProfile`). Noted the removal of `stockEntry`.
+
+- **05 Admin guide and deployment runbook** — Updated production infrastructure to Render (port 5000). Reduced the required env-var checklist to the active set. Marked Redis, OTP, push, S3, and monitoring as planned. Updated deploy and rollback commands and the health-check URL. Marked reconciliation as a planned feature.
+
+- **01 Release notes** — Added an Available/Planned status to every feature. Reclassified phone OTP, PIN login, account lockout, offline sync, reconciliation, and Redis as planned.
+
+- **06 Offline architecture and sync guide** — Retitled as a design specification with a status banner. Marked the `/sync` and `/sync/pull` endpoints and conflict resolution as planned. Renamed identifiers (`inventra_sync`, `InventraDB`, `com.inventra.app`).
+
+- **04 End-user help guide and FAQ** — Updated onboarding to email/password (the current auth). Added a "coming soon" note for SMS OTP and removed OTP-specific FAQ answers.
+
+- **02 Demo video script** — Renamed throughout. Updated the onboarding scene to email-based sign-up. Flagged the offline scene as **[In development]** with production guidance.
+
+- **README** — Rebuilt to a top-GitHub-project structure: centred header with badges, table of contents, features, tech stack, quick start, project status, and roadmap. Updated repo and live API links.
+
+### Removed
+
+- References to the `stockEntry` model (replaced by the inventory tracking system).
+
+---
+
+## [1.0.1] — June 2026 — Database correction
+
+### Changed
+
+- Updated database technology from PostgreSQL + Prisma to MongoDB (Atlas / local) + Mongoose across the developer, admin, offline, and API docs. Replaced Prisma migration commands with `npm run seed`, `pg_dump`/`pg_restore` with `mongodump`/`mongorestore`, and `DATABASE_URL` with `MONGODB_URI`.
+
+---
+
+## [1.0.0] — May 2026 — MVP launch
+
+### Added
+
+- Initial release of all seven documentation deliverables plus the README, produced for the v1.0 MVP launch.
+
+### Product version
+
+- Aligned to the product PRD v1.1 (Merged) — May 2026
 
 ---
 
 ## [Unreleased] — Upcoming
 
-Changes planned for future documentation releases.
-
 ### Planned for Phase 2 (Months 2–4)
-- WhatsApp Integration Guide — when WhatsApp alert and receipt features ship
-- Barcode Scanning Guide — when ZXing / QuaggaJS integration ships
-- Multi-Store Management Guide — when multi-location support ships
-- iOS User Guide — when native iOS app ships
-- Local Language Supplement — Yoruba, Hausa, Igbo UI terminology guide
+
+- Supplier management and purchase order guide (once `/suppliers` and `/purchase-orders` ship)
+- Order-status and supplier-performance reporting (once suppliers/POs ship)
+- Offline sync engine guide (once `/sync` ships)
+- SMS/OTP integration guide (once the SMS gateway is selected)
+- WhatsApp integration guide
+- Barcode scanning guide
+- Multi-store management guide
+- iOS user guide
+- Local language supplement — Yoruba, Hausa, Igbo
 
 ### Planned for Phase 3 (Months 7–12)
-- AI Demand Forecasting Guide
-- WhatsApp Chatbot User Guide
-- Supplier E-Ordering Integration Guide
-- Paystack / Flutterwave Billing Guide
 
-### Pending Resolution (Open Questions)
-The following documents will be updated once open questions are resolved
-by the engineering team:
-
-- OQ-001: SMS gateway decision (Termii vs InfoBip) →
-  Update Developer Onboarding Guide + API Reference
-- OQ-003: PWA in MVP scope confirmation →
-  Update Release Notes + Developer Onboarding Guide
-- OQ-005: Offline sync engine decision →
-  Update Offline Architecture Guide + Developer Onboarding Guide
-- OQ-006: Monolith vs microservices decision →
-  Update Developer Onboarding Guide + API Reference
-- OQ-007: Minimum Android API level confirmation →
-  Update Release Notes + Developer Onboarding Guide
+- AI demand forecasting guide
+- WhatsApp chatbot user guide
+- Supplier e-ordering integration guide
+- Billing integration guide
 
 ---
 
-## Version Format Guide
+## Version format guide
 
 | Tag | Meaning |
 |---|---|
-| `Added` | New documents or major new sections added |
-| `Changed` | Updates to existing content (e.g., corrected API endpoint, updated RBAC rule) |
-| `Fixed` | Corrections to errors, broken links, or inaccurate technical details |
-| `Removed` | Documents or sections removed from the repository |
-| `Deprecated` | Content that is outdated but kept for reference |
+| `Added` | New documents or major sections |
+| `Changed` | Updates to existing content |
+| `Fixed` | Corrections to errors or broken links |
+| `Removed` | Documents or sections removed |
+| `Deprecated` | Outdated content kept for reference |
 
 ---
 
-*StockSense Documentation Changelog · Maintained by the Technical Writing Team*
+*Inventra documentation changelog · Maintained by the Technical Writing Team*
